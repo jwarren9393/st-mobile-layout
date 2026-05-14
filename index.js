@@ -1,7 +1,7 @@
 // SillyTavern Mobile Layout Extension
 // Transforms the mobile UI into a phone-native experience.
 
-const EXTENSION_NAME = 'third-party/st-mobile-layout';
+const EXTENSION_NAME = 'st-mobile-layout';
 const LS_PREFIX = 'st-mobile-layout-';
 
 function isMobileDevice() {
@@ -1324,6 +1324,113 @@ function showToast(message, duration = 1500) {
 
 // ─── Main Init ─────────────────────────────────────────────────────────────────
 
+function createNavBarFallback() {
+    const nav = document.createElement('div');
+    nav.id = 'mobile-nav-bar';
+    nav.innerHTML = `
+        <div class="mobile-nav-item active" data-target="chat" title="Chat">
+            <i class="fa-solid fa-comments"></i>
+            <span class="mobile-nav-label">Chat</span>
+        </div>
+        <div class="mobile-nav-item" data-target="characters" title="Characters">
+            <i class="fa-solid fa-address-book"></i>
+            <span class="mobile-nav-label">Characters</span>
+        </div>
+        <div class="mobile-nav-item" data-target="settings" title="Settings">
+            <i class="fa-solid fa-cog"></i>
+            <span class="mobile-nav-label">Settings</span>
+        </div>
+        <div class="mobile-nav-item" data-target="world-info" title="World Info">
+            <i class="fa-solid fa-globe"></i>
+            <span class="mobile-nav-label">World Info</span>
+        </div>
+        <div class="mobile-nav-item" data-target="extensions" title="Extensions">
+            <i class="fa-solid fa-puzzle-piece"></i>
+            <span class="mobile-nav-label">Extensions</span>
+        </div>
+    `;
+    return nav;
+}
+
+function createSettingsFallback() {
+    const div = document.createElement('div');
+    div.innerHTML = `
+        <div id="mobile-layout-settings">
+            <div class="inline-drawer">
+                <div class="inline-drawer-header inline-drawer-toggle">
+                    <b>Mobile Layout</b>
+                    <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                </div>
+                <div class="inline-drawer-content">
+                    <div class="mobile-layout-setting-group">
+                        <label class="mobile-layout-toggle">
+                            <input type="checkbox" id="mobile-layout-enabled" checked>
+                            <span>Enable Mobile Layout</span>
+                        </label>
+                    </div>
+                    <h4>Theme</h4>
+                    <div class="mobile-layout-setting-group">
+                        <label class="mobile-layout-toggle">
+                            <input type="checkbox" id="mobile-layout-amoled">
+                            <span>AMOLED Black Mode</span>
+                        </label>
+                    </div>
+                    <div class="mobile-layout-setting-group">
+                        <label for="mobile-layout-accent">Accent Color</label>
+                        <div class="mobile-layout-accent-row">
+                            <div class="mobile-layout-accent-swatch" data-color="#7c5cbf" style="background:#7c5cbf;" title="Purple"></div>
+                            <div class="mobile-layout-accent-swatch" data-color="#3b82f6" style="background:#3b82f6;" title="Blue"></div>
+                            <div class="mobile-layout-accent-swatch" data-color="#10b981" style="background:#10b981;" title="Green"></div>
+                            <div class="mobile-layout-accent-swatch" data-color="#f59e0b" style="background:#f59e0b;" title="Amber"></div>
+                            <div class="mobile-layout-accent-swatch" data-color="#ef4444" style="background:#ef4444;" title="Red"></div>
+                            <div class="mobile-layout-accent-swatch" data-color="#ec4899" style="background:#ec4899;" title="Pink"></div>
+                            <input type="text" id="mobile-layout-accent-custom" placeholder="#hex" maxlength="7">
+                        </div>
+                    </div>
+                    <h4>Features</h4>
+                    <div class="mobile-layout-setting-group">
+                        <label class="mobile-layout-toggle">
+                            <input type="checkbox" id="mobile-layout-gestures" checked>
+                            <span>Edge Swipe Gestures</span>
+                        </label>
+                    </div>
+                    <div class="mobile-layout-setting-group">
+                        <label class="mobile-layout-toggle">
+                            <input type="checkbox" id="mobile-layout-char-strip" checked>
+                            <span>Quick Character Strip</span>
+                        </label>
+                    </div>
+                    <div class="mobile-layout-setting-group">
+                        <label class="mobile-layout-toggle">
+                            <input type="checkbox" id="mobile-layout-response-strip" checked>
+                            <span>Response Strip</span>
+                        </label>
+                    </div>
+                    <div class="mobile-layout-setting-group">
+                        <label class="mobile-layout-toggle">
+                            <input type="checkbox" id="mobile-layout-char-context-menu" checked>
+                            <span>Character Tap Context Menu</span>
+                        </label>
+                    </div>
+                    <div class="mobile-layout-setting-group">
+                        <label class="mobile-layout-toggle">
+                            <input type="checkbox" id="mobile-layout-format-toolbar" checked>
+                            <span>Formatting Toolbar</span>
+                        </label>
+                    </div>
+                    <div class="mobile-layout-setting-group">
+                        <label class="mobile-layout-toggle">
+                            <input type="checkbox" id="mobile-layout-model-combobox" checked>
+                            <span>Model Combo Box</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    return div.innerHTML;
+}
+
 async function init() {
     console.log('[Mobile Layout] Extension loaded');
 
@@ -1336,22 +1443,52 @@ async function init() {
 
     applySettings();
 
+    let navLoaded = false;
+    let settingsLoaded = false;
+
     try {
         const context = SillyTavern.getContext();
         if (context?.renderExtensionTemplateAsync) {
-            const navHtml = await context.renderExtensionTemplateAsync(EXTENSION_NAME, 'mobile-nav');
-            const navContainer = document.createElement('div');
-            navContainer.innerHTML = navHtml;
-            document.body.appendChild(navContainer.firstElementChild || navContainer);
+            try {
+                const navHtml = await context.renderExtensionTemplateAsync(EXTENSION_NAME, 'mobile-nav');
+                if (navHtml) {
+                    const navContainer = document.createElement('div');
+                    navContainer.innerHTML = navHtml;
+                    document.body.appendChild(navContainer.firstElementChild || navContainer);
+                    navLoaded = true;
+                }
+            } catch (e) {
+                console.warn('[Mobile Layout] Template load failed, using fallback:', e);
+            }
 
-            const settingsHtml = await context.renderExtensionTemplateAsync(EXTENSION_NAME, 'settings');
-            const extSettings = document.getElementById('extensions_settings');
-            if (extSettings) {
-                extSettings.insertAdjacentHTML('beforeend', settingsHtml);
+            try {
+                const settingsHtml = await context.renderExtensionTemplateAsync(EXTENSION_NAME, 'settings');
+                if (settingsHtml) {
+                    const extSettings = document.getElementById('extensions_settings');
+                    if (extSettings) {
+                        extSettings.insertAdjacentHTML('beforeend', settingsHtml);
+                        settingsLoaded = true;
+                    }
+                }
+            } catch (e) {
+                console.warn('[Mobile Layout] Settings template load failed, using fallback:', e);
             }
         }
     } catch (e) {
-        console.warn('[Mobile Layout] Error loading templates:', e);
+        console.warn('[Mobile Layout] Context unavailable, using fallbacks:', e);
+    }
+
+    if (!navLoaded) {
+        console.log('[Mobile Layout] Using JS fallback for nav bar');
+        document.body.appendChild(createNavBarFallback());
+    }
+
+    if (!settingsLoaded) {
+        console.log('[Mobile Layout] Using JS fallback for settings panel');
+        const extSettings = document.getElementById('extensions_settings');
+        if (extSettings) {
+            extSettings.insertAdjacentHTML('beforeend', createSettingsFallback());
+        }
     }
 
     initBottomNav();
